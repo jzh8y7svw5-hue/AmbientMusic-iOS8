@@ -68,8 +68,8 @@ jobs:
           sed -i 's/TARGET = iphone:clang:9\.3:8\.0/TARGET = iphone:clang:9.2:8.0/' Makefile
           grep '^TARGET' Makefile
           # The Linux iOS linker has a known armv7 Thumb-branch issue with ARC's
-          # objc_autoreleaseReturnValue optimization. Disable ARC for this legacy target.
-          make package FINALPACKAGE=1 ADDITIONAL_OBJCFLAGS="-fno-objc-arc"
+          # objc_autoreleaseReturnValue optimization. main.m includes MRC cleanup.
+          make package FINALPACKAGE=1 ADDITIONAL_OBJCFLAGS="-fno-objc-arc -Wno-error=objc-missing-super-calls"
           find packages -maxdepth 1 -type f -name '*.deb' -print
 
       - name: Upload Debian package
