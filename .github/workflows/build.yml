@@ -1,0 +1,44 @@
+name: Build AmbientMusic
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bash curl git perl make python3 xz-utils
+
+      - name: Install Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+          echo "$HOME/theos/bin" >> "$GITHUB_PATH"
+          echo "$HOME/theos/toolchain/linux/iphone/bin" >> "$GITHUB_PATH"
+
+      - name: Install iOS SDK
+        run: |
+          git clone --depth 1 https://github.com/theos/sdks.git "$RUNNER_TEMP/theos-sdks"
+          mkdir -p "$HOME/theos/sdks"
+          cp -R "$RUNNER_TEMP/theos-sdks/iPhoneOS9.3.sdk" "$HOME/theos/sdks/"
+
+      - name: Build package
+        run: |
+          make package FINALPACKAGE=1
+          find packages -maxdepth 1 -type f -name '*.deb' -print
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AmbientMusic-deb
+          path: packages/*.deb
+          if-no-files-found: error
