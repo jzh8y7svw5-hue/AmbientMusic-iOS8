@@ -15,8 +15,9 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y bash curl git perl make python3 xz-utils bzip2 libtinfo5
+          sudo apt-get install -y bash curl git perl make python3 xz-utils lzma bzip2 libtinfo5
 
       - name: Install Theos
         run: |
@@ -33,25 +34,27 @@ jobs:
             https://github.com/sbingner/llvm-project/releases/latest/download/linux-ios-arm64e-clang-toolchain.tar.lzma \
             -o "$RUNNER_TEMP/ios-toolchain.tar.lzma"
           tar --lzma -xf "$RUNNER_TEMP/ios-toolchain.tar.lzma" -C "$RUNNER_TEMP/ios-toolchain"
-          TOOLCHAIN_DIR="$(find "$RUNNER_TEMP/ios-toolchain" -type f -path '*/bin/clang' -print -quit | xargs -r dirname | xargs -r dirname)"
-          test -n "$TOOLCHAIN_DIR"
+          TOOLCHAIN_DIR="$RUNNER_TEMP/ios-toolchain/ios-arm64e-clang-toolchain"
+          test -d "$TOOLCHAIN_DIR"
           cp -a "$TOOLCHAIN_DIR/." "$HOME/theos/toolchain/linux/iphone/"
           test -x "$HOME/theos/toolchain/linux/iphone/bin/clang"
           "$HOME/theos/toolchain/linux/iphone/bin/clang" --version
 
-      - name: Install device SDK (avoid simulator stubs)
+      - name: Install iOS device SDK
         run: |
           set -euxo pipefail
-          mkdir -p "$RUNNER_TEMP/sdk-extract" "$HOME/theos/sdks"
-          curl -fL --retry 3 \
-            https://raw.githubusercontent.com/Sn0wCooder/theos-sdks/master/iPhoneOS9.3.sdk.tbz2 \
-            -o "$RUNNER_TEMP/iPhoneOS9.3.sdk.tbz2"
-          tar -xjf "$RUNNER_TEMP/iPhoneOS9.3.sdk.tbz2" -C "$RUNNER_TEMP/sdk-extract"
-          SDK_DIR="$(find "$RUNNER_TEMP/sdk-extract" -type d -name 'iPhoneOS9.3.sdk' -print -quit)"
-          test -n "$SDK_DIR"
-          cp -a "$SDK_DIR" "$HOME/theos/sdks/iPhoneOS9.3.sdk"
+          mkdir -p "$HOME/theos/sdks"
+          # Sparse checkout downloads only the iOS 9.3 device SDK, not every SDK in the repository.
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/xybp888/iOS-SDKs.git "$RUNNER_TEMP/iOS-SDKs"
+          git -C "$RUNNER_TEMP/iOS-SDKs" sparse-checkout set iPhoneOS9.3.sdk
+          test -d "$RUNNER_TEMP/iOS-SDKs/iPhoneOS9.3.sdk"
+          cp -a "$RUNNER_TEMP/iOS-SDKs/iPhoneOS9.3.sdk" "$HOME/theos/sdks/iPhoneOS9.3.sdk"
           test -d "$HOME/theos/sdks/iPhoneOS9.3.sdk/System/Library/Frameworks/UIKit.framework/Headers"
           echo "Installed SDK: $HOME/theos/sdks/iPhoneOS9.3.sdk"
+          # Fail early if the SDK still contains simulator-only stubs for key frameworks.
+          grep -R -n -m 1 'ios-simulator' \
+            "$HOME/theos/sdks/iPhoneOS9.3.sdk/usr/lib/libSystem.tbd" \
+            "$HOME/theos/sdks/iPhoneOS9.3.sdk/System/Library/Frameworks/UIKit.framework/UIKit.tbd" || true
 
       - name: Build package
         run: |
