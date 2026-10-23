@@ -170,7 +170,7 @@ static NSString *AMStringOrFallback(id value, NSString *fallback) {
     label.font = [UIFont systemFontOfSize:size weight:weight];
     label.adjustsFontSizeToFitWidth = YES;
     label.minimumScaleFactor = 0.75;
-    return label;
+    return [label autorelease];
 }
 
 - (UIButton *)buttonWithTitle:(NSString *)title fontSize:(CGFloat)size action:(SEL)action {
@@ -309,6 +309,25 @@ static NSString *AMStringOrFallback(id value, NSString *fallback) {
     [self.progressTimer invalidate];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self.musicPlayer endGeneratingPlaybackNotifications];
+
+    // Manual reference counting is used for the armv7 Linux toolchain workaround.
+    [_backgroundImageView release];
+    [_blurView release];
+    [_dimView release];
+    [_artworkView release];
+    [_titleLabel release];
+    [_artistLabel release];
+    [_albumLabel release];
+    [_elapsedLabel release];
+    [_durationLabel release];
+    [_progressSlider release];
+    [_previousButton release];
+    [_playPauseButton release];
+    [_nextButton release];
+    [_hintLabel release];
+    [_progressTimer release];
+    [_musicPlayer release];
+    [super dealloc];
 }
 
 @end
@@ -319,8 +338,8 @@ static NSString *AMStringOrFallback(id value, NSString *fallback) {
 
 @implementation AMAppDelegate
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-    AMPlayerViewController *controller = [[AMPlayerViewController alloc] init];
+    self.window = [[[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]] autorelease];
+    AMPlayerViewController *controller = [[[AMPlayerViewController alloc] init] autorelease];
     self.window.rootViewController = controller;
     [self.window makeKeyAndVisible];
     return YES;
