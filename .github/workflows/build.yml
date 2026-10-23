@@ -40,25 +40,33 @@ jobs:
           test -x "$HOME/theos/toolchain/linux/iphone/bin/clang"
           "$HOME/theos/toolchain/linux/iphone/bin/clang" --version
 
-      - name: Install iOS device SDK
+      - name: Install iOS 9.2 device SDK
         run: |
           set -euxo pipefail
-          mkdir -p "$HOME/theos/sdks"
-          # Sparse checkout downloads only the iOS 9.3 device SDK, not every SDK in the repository.
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/xybp888/iOS-SDKs.git "$RUNNER_TEMP/iOS-SDKs"
-          git -C "$RUNNER_TEMP/iOS-SDKs" sparse-checkout set iPhoneOS9.3.sdk
-          test -d "$RUNNER_TEMP/iOS-SDKs/iPhoneOS9.3.sdk"
-          cp -a "$RUNNER_TEMP/iOS-SDKs/iPhoneOS9.3.sdk" "$HOME/theos/sdks/iPhoneOS9.3.sdk"
-          test -d "$HOME/theos/sdks/iPhoneOS9.3.sdk/System/Library/Frameworks/UIKit.framework/Headers"
-          echo "Installed SDK: $HOME/theos/sdks/iPhoneOS9.3.sdk"
-          # Fail early if the SDK still contains simulator-only stubs for key frameworks.
-          grep -R -n -m 1 'ios-simulator' \
-            "$HOME/theos/sdks/iPhoneOS9.3.sdk/usr/lib/libSystem.tbd" \
-            "$HOME/theos/sdks/iPhoneOS9.3.sdk/System/Library/Frameworks/UIKit.framework/UIKit.tbd" || true
+          mkdir -p "$HOME/theos/sdks" "$RUNNER_TEMP/sdk"
+          # Theos recommends iOS 9.2 for Linux; the 9.3 SDK produced simulator-only stubs.
+          curl -fL --retry 3 https://sdks.website/dl/iPhoneOS9.2.sdk.tbz2 \
+            -o "$RUNNER_TEMP/iPhoneOS9.2.sdk.tbz2"
+          tar -xjf "$RUNNER_TEMP/iPhoneOS9.2.sdk.tbz2" -C "$RUNNER_TEMP/sdk"
+          SDK_DIR="$(find "$RUNNER_TEMP/sdk" -type d -name 'iPhoneOS9.2.sdk' -print -quit)"
+          test -n "$SDK_DIR"
+          cp -a "$SDK_DIR" "$HOME/theos/sdks/iPhoneOS9.2.sdk"
+          test -d "$HOME/theos/sdks/iPhoneOS9.2.sdk/System/Library/Frameworks/UIKit.framework/Headers"
+          test -f "$HOME/theos/sdks/iPhoneOS9.2.sdk/usr/lib/system/liblaunch.tbd" -o -f "$HOME/theos/sdks/iPhoneOS9.2.sdk/usr/lib/system/liblaunch.dylib"
+          if grep -R -n -m 1 'platform: ios-simulator' \
+            "$HOME/theos/sdks/iPhoneOS9.2.sdk/usr/lib/libSystem.tbd" \
+            "$HOME/theos/sdks/iPhoneOS9.2.sdk/System/Library/Frameworks/UIKit.framework/UIKit.tbd"; then
+            echo 'ERROR: SDK contains simulator platform stubs, not a device SDK.'
+            exit 1
+          fi
+          echo "Installed SDK: $HOME/theos/sdks/iPhoneOS9.2.sdk"
 
       - name: Build package
         run: |
           set -euxo pipefail
+          # Point Theos at the installed 9.2 SDK instead of the old 9.3 SDK.
+          sed -i 's/TARGET = iphone:clang:9\.3:8\.0/TARGET = iphone:clang:9.2:8.0/' Makefile
+          grep '^TARGET' Makefile
           make package FINALPACKAGE=1
           find packages -maxdepth 1 -type f -name '*.deb' -print
 
