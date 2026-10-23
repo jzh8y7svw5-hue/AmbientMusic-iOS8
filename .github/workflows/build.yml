@@ -16,10 +16,11 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bash curl git perl make python3 xz-utils libtinfo5
+          sudo apt-get install -y bash curl git perl make python3 xz-utils bzip2 libtinfo5
 
       - name: Install Theos
         run: |
+          set -euxo pipefail
           git clone --recursive --depth 1 https://github.com/theos/theos.git "$HOME/theos"
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
           echo "$HOME/theos/bin" >> "$GITHUB_PATH"
@@ -31,18 +32,26 @@ jobs:
           curl -fL --retry 3 \
             https://github.com/sbingner/llvm-project/releases/latest/download/linux-ios-arm64e-clang-toolchain.tar.lzma \
             -o "$RUNNER_TEMP/ios-toolchain.tar.lzma"
-          tar -xvf "$RUNNER_TEMP/ios-toolchain.tar.lzma" -C "$RUNNER_TEMP/ios-toolchain"
-          cp -a "$RUNNER_TEMP/ios-toolchain/ios-arm64e-clang-toolchain/." "$HOME/theos/toolchain/linux/iphone/"
+          tar --lzma -xf "$RUNNER_TEMP/ios-toolchain.tar.lzma" -C "$RUNNER_TEMP/ios-toolchain"
+          TOOLCHAIN_DIR="$(find "$RUNNER_TEMP/ios-toolchain" -type f -path '*/bin/clang' -print -quit | xargs -r dirname | xargs -r dirname)"
+          test -n "$TOOLCHAIN_DIR"
+          cp -a "$TOOLCHAIN_DIR/." "$HOME/theos/toolchain/linux/iphone/"
           test -x "$HOME/theos/toolchain/linux/iphone/bin/clang"
           "$HOME/theos/toolchain/linux/iphone/bin/clang" --version
 
-      - name: Install iOS SDK
+      - name: Install device SDK (avoid simulator stubs)
         run: |
           set -euxo pipefail
-          git clone --depth 1 https://github.com/theos/sdks.git "$RUNNER_TEMP/theos-sdks"
-          mkdir -p "$HOME/theos/sdks"
-          test -d "$RUNNER_TEMP/theos-sdks/iPhoneOS9.3.sdk"
-          cp -R "$RUNNER_TEMP/theos-sdks/iPhoneOS9.3.sdk" "$HOME/theos/sdks/"
+          mkdir -p "$RUNNER_TEMP/sdk-extract" "$HOME/theos/sdks"
+          curl -fL --retry 3 \
+            https://raw.githubusercontent.com/Sn0wCooder/theos-sdks/master/iPhoneOS9.3.sdk.tbz2 \
+            -o "$RUNNER_TEMP/iPhoneOS9.3.sdk.tbz2"
+          tar -xjf "$RUNNER_TEMP/iPhoneOS9.3.sdk.tbz2" -C "$RUNNER_TEMP/sdk-extract"
+          SDK_DIR="$(find "$RUNNER_TEMP/sdk-extract" -type d -name 'iPhoneOS9.3.sdk' -print -quit)"
+          test -n "$SDK_DIR"
+          cp -a "$SDK_DIR" "$HOME/theos/sdks/iPhoneOS9.3.sdk"
+          test -d "$HOME/theos/sdks/iPhoneOS9.3.sdk/System/Library/Frameworks/UIKit.framework/Headers"
+          echo "Installed SDK: $HOME/theos/sdks/iPhoneOS9.3.sdk"
 
       - name: Build package
         run: |
