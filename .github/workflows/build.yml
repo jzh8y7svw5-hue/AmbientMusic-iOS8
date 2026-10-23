@@ -45,7 +45,7 @@ jobs:
           set -euxo pipefail
           mkdir -p "$HOME/theos/sdks" "$RUNNER_TEMP/sdk"
           # Theos recommends iOS 9.2 for Linux; the 9.3 SDK produced simulator-only stubs.
-          curl -fL --retry 3 https://sdks.website/dl/iPhoneOS9.2.sdk.tbz2 \
+          curl -fL --retry 3 https://raw.githubusercontent.com/qianjigui/iOS-sdks/master/iPhoneOS9.2.sdk.tbz2 \
             -o "$RUNNER_TEMP/iPhoneOS9.2.sdk.tbz2"
           tar -xjf "$RUNNER_TEMP/iPhoneOS9.2.sdk.tbz2" -C "$RUNNER_TEMP/sdk"
           SDK_DIR="$(find "$RUNNER_TEMP/sdk" -type d -name 'iPhoneOS9.2.sdk' -print -quit)"
