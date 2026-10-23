@@ -164,7 +164,7 @@ static NSString *AMStringOrFallback(id value, NSString *fallback) {
     [panel addConstraint:[NSLayoutConstraint constraintWithItem:self.hintLabel attribute:NSLayoutAttributeCenterX relatedBy:NSLayoutRelationEqual toItem:panel attribute:NSLayoutAttributeCenterX multiplier:1 constant:0]];
 }
 
-- (UILabel *)labelWithSize:(CGFloat)size weight:(UIFontWeight)weight {
+- (UILabel *)labelWithSize:(CGFloat)size weight:(CGFloat)weight {
     UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
     label.textColor = [UIColor whiteColor];
     label.font = [UIFont systemFontOfSize:size weight:weight];
