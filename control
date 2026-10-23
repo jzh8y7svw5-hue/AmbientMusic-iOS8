@@ -1,0 +1,9 @@
+Package: com.jzh8y7svw5.ambientmusic
+Name: AmbientMusic
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: A landscape music standby interface for iOS 8.
+Maintainer: AmbientMusic
+Author: AmbientMusic
+Section: Applications
+Depends: firmware (>= 8.0)
